@@ -1,11 +1,19 @@
 // Install includes and libs by running:
 // scoop install wasmer
+// 
+// The install sets the environment variable: WASMER_DIR
 //
 // Then restart Visual Studio to compile
 //
+// https://wasmtime.dev/ - Run installer
 
+#include <fstream>
 #include <stdio.h>
 #include "wasmer.h"
+
+
+// https://github.com/bytecodealliance/wasmtime/releases
+// https://github.com/bytecodealliance/wasmtime-cpp
 
 #pragma comment( lib, "Wldap32" )
 #pragma comment( lib, "Ws2_32" )
@@ -18,23 +26,28 @@
 #pragma comment(lib, "ntdll")
 #pragma comment(lib, "bcrypt")
 
+#pragma comment(lib, "wasmtime.dll.lib")
 #pragma comment(lib, "wasmer.lib")
 
 int main(int argc, const char* argv[]) {
-    const char* wat_string =
-        "(module\n"
-        "  (type $sum_t (func (param i32 i32) (result i32)))\n"
-        "  (func $sum_f (type $sum_t) (param $x i32) (param $y i32) (result i32)\n"
-        "    local.get $x\n"
-        "    local.get $y\n"
-        "    i32.add)\n"
-        "  (export \"sum\" (func $sum_f)))";
+    const char* wasm_file_path = "wasm/client.wasm"; // Replace with the actual path to your wasm file
 
-    wasm_byte_vec_t wat;
-    wasm_byte_vec_new(&wat, strlen(wat_string), wat_string);
-    wasm_byte_vec_t wasm_bytes;
-    wat2wasm(&wat, &wasm_bytes);
-    wasm_byte_vec_delete(&wat);
+    // Read the contents of the WebAssembly file
+    FILE* wasm_file = NULL;
+    if (fopen_s(&wasm_file, wasm_file_path, "rb") != 0 || wasm_file == NULL) {
+        printf("> Error opening WebAssembly file!\n");
+        return 1;
+    }
+
+    fseek(wasm_file, 0, SEEK_END);
+    long file_size = ftell(wasm_file);
+    fseek(wasm_file, 0, SEEK_SET);
+
+    wasm_byte_vec_t wasm_bytes = { 0 };
+    wasm_byte_vec_new_uninitialized(&wasm_bytes, file_size);
+    fread(wasm_bytes.data, 1, file_size, wasm_file);
+    fclose(wasm_file);
+
 
     printf("Creating the store...\n");
     wasm_engine_t* engine = wasm_engine_new();
@@ -45,6 +58,7 @@ int main(int argc, const char* argv[]) {
 
     if (!module) {
         printf("> Error compiling module!\n");
+        wasm_byte_vec_delete(&wasm_bytes);
         return 1;
     }
 
@@ -58,6 +72,7 @@ int main(int argc, const char* argv[]) {
 
     if (!instance) {
         printf("> Error instantiating module!\n");
+        wasm_byte_vec_delete(&wasm_bytes);
         return 1;
     }
 
@@ -67,6 +82,7 @@ int main(int argc, const char* argv[]) {
 
     if (exports.size == 0) {
         printf("> Error accessing exports!\n");
+        wasm_byte_vec_delete(&wasm_bytes);
         return 1;
     }
 
@@ -75,6 +91,7 @@ int main(int argc, const char* argv[]) {
 
     if (sum_func == NULL) {
         printf("> Failed to get the `sum` function!\n");
+        wasm_byte_vec_delete(&wasm_bytes);
         return 1;
     }
 
@@ -86,7 +103,7 @@ int main(int argc, const char* argv[]) {
 
     if (wasm_func_call(sum_func, &args, &results)) {
         printf("> Error calling the `sum` function!\n");
-
+        wasm_byte_vec_delete(&wasm_bytes);
         return 1;
     }
 
@@ -97,4 +114,7 @@ int main(int argc, const char* argv[]) {
     wasm_instance_delete(instance);
     wasm_store_delete(store);
     wasm_engine_delete(engine);
+    wasm_byte_vec_delete(&wasm_bytes);
+
+    return 0;
 }

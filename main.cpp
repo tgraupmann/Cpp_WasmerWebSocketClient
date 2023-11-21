@@ -30,7 +30,8 @@
 #pragma comment(lib, "wasmer.lib")
 
 int main(int argc, const char* argv[]) {
-    const char* wasm_file_path = "wasm/client.wasm"; // Replace with the actual path to your wasm file
+    const char* wasm_file_path = "wasm/hello.wasm";
+    //const char* wasm_file_path = "wasm/client.wasm";
 
     // Read the contents of the WebAssembly file
     FILE* wasm_file = NULL;
@@ -85,29 +86,6 @@ int main(int argc, const char* argv[]) {
         wasm_byte_vec_delete(&wasm_bytes);
         return 1;
     }
-
-    printf("Retrieving the `sum` function...\n");
-    wasm_func_t* sum_func = wasm_extern_as_func(exports.data[0]);
-
-    if (sum_func == NULL) {
-        printf("> Failed to get the `sum` function!\n");
-        wasm_byte_vec_delete(&wasm_bytes);
-        return 1;
-    }
-
-    printf("Calling `sum` function...\n");
-    wasm_val_t args_val[2] = { WASM_I32_VAL(3), WASM_I32_VAL(4) };
-    wasm_val_t results_val[1] = { WASM_INIT_VAL };
-    wasm_val_vec_t args = WASM_ARRAY_VEC(args_val);
-    wasm_val_vec_t results = WASM_ARRAY_VEC(results_val);
-
-    if (wasm_func_call(sum_func, &args, &results)) {
-        printf("> Error calling the `sum` function!\n");
-        wasm_byte_vec_delete(&wasm_bytes);
-        return 1;
-    }
-
-    printf("Results of `sum`: %d\n", results_val[0].of.i32);
 
     wasm_module_delete(module);
     wasm_extern_vec_delete(&exports);

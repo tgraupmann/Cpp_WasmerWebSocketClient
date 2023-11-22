@@ -22,4 +22,8 @@ SET GOOS=js
 SET GOARCH=wasm
 CALL go build -o ..\wasm\hello.wasm hello.go
 
+REM try wasmer
 wasmer run ..\wasm\hello.wasm
+
+REM try wasmedge
+wasmedge --dir .:. ../wasm/hello.wasm js/wasm_exec.js WasmEdge Runtime
